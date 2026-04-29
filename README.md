@@ -1,6 +1,6 @@
 # Custom Attributes
 
-Authors: Lea Verou, TBD
+Authors: Lea Verou, Keith Cirkel
 
 1. [Introduction](#introduction)
 2. [Prior art](#prior-art)
