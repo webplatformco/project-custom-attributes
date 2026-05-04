@@ -36,26 +36,43 @@ This document is to list very specific, concrete use cases.
 - Conditional rendering (`show-if`  , `hide-if`  , `remove-if` etc)
 - Emulate events for test framework (e.g. `click-after="0.5"` )
 - LIterally all [htmx](https://htmx.org/docs/) attributes
+- `sync-with` for two-way data binding
+- Attribute to treat content as markdown
 
 ## Form control attributes
 
+### General
 
 - Persisting forms (e.g. in local storage)
 - Custom form validation
 - `required-trimmed`: Like `required`, but whitespace-only values don't count
+- `css-var="--value"`: Automatically syncs with CSS variable
+
+### Checkboxes
+
+- Designate a checkbox as an aggregate checkbox for checkboxes with a given `name`
+  - Or a `<progress>`  element
+- `indeterminate`  attribute
+
+### Text inputs
+
+- Specific format, e.g. currency, measurement, 5-digit code, etc
 - Show/hide password
-- Checkboxes
-	- Designate a checkbox as an aggregate checkbox for checkboxes with a given `name`
-	  - Or a `<progress>`  element
-	- `indeterminate`  attribute
-- Text inputs
-	- Specific format, e.g. currency, measurement, 5-digit code, etc
-- `<button>`
-	- `<button href>`
-	- Disable button if field is invalid (or form)
+
+### Sliders
+
+- `hover-preview`: Hovering moves the thumb, clicking selects (like a star rating widget)
+- `with-tooltip`
+
+###`<button>`
+
+- `<button href>`
+- Disable button if field is invalid (or form)
 
 ## Tables
+
 - `<table sortable>`
+- `<col freeze>` / `<tr freeze>` (applies `position: sticky`)
 - `<td value>` to be used for filtering and sorting
 
 ## Code
@@ -70,6 +87,7 @@ This document is to list very specific, concrete use cases.
   - Custom toolbar
   - `start-at="0:05"`
   - `lazy-src`
+  - `preview-on-hover`
 - Images
   - Click to play (with separate `src`  for the static frame)
 
