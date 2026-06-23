@@ -3,12 +3,13 @@
 Authors: Lea Verou, Keith Cirkel
 
 1. [Introduction](#introduction)
-2. [Prior art](#prior-art)
+2. [Use cases](#use-cases)
+3. [Prior art](#prior-art)
 	1. [Related proposals](#related-proposals)
 	2. [Userland](#userland)
 	3. [Other](#other)
-3. [Design principles](#design-principles)
-4. [Design decisions](#design-decisions)
+4. [Design principles](#design-principles)
+5. [Design decisions](#design-decisions)
 	1. [How to specify?](#how-to-specify)
 	2. [Reflection](#reflection)
 	3. [Which `Attr` property stores the JS-facing value?](#which-attr-property-stores-the-js-facing-value)
@@ -19,15 +20,15 @@ Authors: Lea Verou, Keith Cirkel
 	8. [Lifecycle hooks](#lifecycle-hooks)
 	9. [How to react to attribute changes?](#how-to-react-to-attribute-changes)
 	10. [Traits involving multiple attributes](#traits-involving-multiple-attributes)
-5. [Current Proposal](#current-proposal)
+6. [Current Proposal](#current-proposal)
 	1. [Summary](#summary)
 	2. [New members on existing interfaces](#new-members-on-existing-interfaces)
 	3. [`Attr` subclass members](#attr-subclass-members)
 	4. [Lifecycle hooks](#lifecycle-hooks-1)
-6. [Notes / Patterns](#notes--patterns)
+7. [Notes / Patterns](#notes--patterns)
 	1. [Persistent attribute node](#persistent-attribute-node)
 	2. [Timing](#timing)
-7. [FAQ](#faq)
+8. [FAQ](#faq)
 	1. [Does this replace custom elements?](#does-this-replace-custom-elements)
 	2. [Can't we do this already with `MutationObserver`?](#cant-we-do-this-already-with-mutationobserver)
 
@@ -77,6 +78,8 @@ with:
 Being able to define custom attributes that can be used on any element also addresses several pain points around extending built-ins,
 which was one of the most prominent pain points around Web Components per State of HTML 2025.
 Authors can simply do `<button my-button>` rather than having to define their own `<my-button>` component that emulates or wraps buttons, introducing a ton of complexity.
+
+## Use cases
 
 A **[concrete list of use cases can be found here](use-cases.md)**.
 
