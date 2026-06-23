@@ -64,7 +64,7 @@ This document is to list very specific, concrete use cases.
 - `hover-preview`: Hovering moves the thumb, clicking selects (like a star rating widget)
 - `with-tooltip`
 
-###`<button>`
+### `<button>`
 
 - `<button href>`
 - Disable button if field is invalid (or form)
