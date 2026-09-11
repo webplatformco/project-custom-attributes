@@ -2,36 +2,35 @@
 
 Authors: Lea Verou, Keith Cirkel
 
+This document covers the history and motivation for custom attributes: use
+cases, prior art, and the design questions raised along the way and how each
+was resolved.
+
+The current proposal is **[EXPLAINER.md](EXPLAINER.md)**.
+
 1. [Introduction](#introduction)
 2. [Use cases](#use-cases)
 3. [Prior art](#prior-art)
-	1. [Related proposals](#related-proposals)
-	2. [Userland](#userland)
-	3. [Other](#other)
+   1. [Related proposals](#related-proposals)
+   2. [Userland](#userland)
+   3. [Other](#other)
 4. [Design principles](#design-principles)
 5. [Design decisions](#design-decisions)
-	1. [How to specify?](#how-to-specify)
-	2. [Reflection](#reflection)
-	3. [Which `Attr` property stores the JS-facing value?](#which-attr-property-stores-the-js-facing-value)
-	4. [API surface](#api-surface)
-	5. [Scoping](#scoping)
-	6. [Same attribute on multiple element types](#same-attribute-on-multiple-element-types)
-	7. [Naming](#naming)
-	8. [Lifecycle hooks](#lifecycle-hooks)
-	9. [How to react to attribute changes?](#how-to-react-to-attribute-changes)
-	10. [Traits involving multiple attributes](#traits-involving-multiple-attributes)
-6. [Current Proposal](#current-proposal)
-	1. [Summary](#summary)
-	2. [New members on existing interfaces](#new-members-on-existing-interfaces)
-	3. [`Attr` subclass members](#attr-subclass-members)
-	4. [Lifecycle hooks](#lifecycle-hooks-1)
-7. [Notes / Patterns](#notes--patterns)
-	1. [Persistent attribute node](#persistent-attribute-node)
-	2. [Timing](#timing)
-8. [FAQ](#faq)
-	1. [Does this replace custom elements?](#does-this-replace-custom-elements)
-	2. [Can't we do this already with `MutationObserver`?](#cant-we-do-this-already-with-mutationobserver)
-
+   1. [How to specify?](#how-to-specify)
+   2. [Reflection](#reflection)
+   3. [Which `Attr` property stores the JS-facing value?](#which-attr-property-stores-the-js-facing-value)
+   4. [API surface](#api-surface)
+   5. [Scoping](#scoping)
+   6. [Same attribute on multiple element types](#same-attribute-on-multiple-element-types)
+   7. [Naming](#naming)
+   8. [Lifecycle hooks](#lifecycle-hooks)
+   9. [How to react to attribute changes?](#how-to-react-to-attribute-changes)
+   10. [Traits involving multiple attributes](#traits-involving-multiple-attributes)
+   11. [When does the constructor run?](#when-does-the-constructor-run)
+6. [Current proposal](#current-proposal)
+7. [FAQ](#faq)
+   1. [Does this replace custom elements?](#does-this-replace-custom-elements)
+   2. [Can't we do this already with `MutationObserver`?](#cant-we-do-this-already-with-mutationobserver)
 
 ## Introduction
 
@@ -53,14 +52,16 @@ Consider this:
 
 ```html
 <sortable-table>
-<table>
-	<thead><!-- elided --></thead>
-	<tr>
-		<td-value value="0.5">
-			<td>Half</td>
-		</td-value>
-	</tr>
-</table>
+  <table>
+    <thead>
+      <!-- elided -->
+    </thead>
+    <tr>
+      <td-value value="0.5">
+        <td>Half</td>
+      </td-value>
+    </tr>
+  </table>
 </sortable-table>
 ```
 
@@ -71,6 +72,7 @@ Even when wrapping an element to add additional functionality is a viable soluti
 ```
 
 with:
+
 ```html
 <time datetime="2025-11-15" dt-format="relative"></time>
 ```
@@ -88,7 +90,7 @@ A **[concrete list of use cases can be found here](use-cases.md)**.
 ### Related proposals
 
 - [Minimal custom attributes extending `Attr`](https://github.com/WICG/webcomponents/issues/1029#issuecomment-3597708609) by @keithamus
-	- [Reflection via `attr.value`](https://github.com/WICG/webcomponents/issues/1029#issuecomment-2455166850)
+  - [Reflection via `attr.value`](https://github.com/WICG/webcomponents/issues/1029#issuecomment-2455166850)
 - [Proposal: Custom attributes for all elements, enhancements for more complex use cases](https://github.com/WICG/webcomponents/issues/1029) by @leaverou
 - [Custom Element Features, Built-in Enhancements, Itemscope Managers](https://github.com/WICG/webcomponents/issues/1000)
 - [Original custom attributes proposal (naming only)](https://github.com/whatwg/html/issues/2271) by @leaverou
@@ -113,6 +115,7 @@ A **[concrete list of use cases can be found here](use-cases.md)**.
 ## Design principles
 
 Generalizing the [PoC](https://www.w3.org/TR/design-principles/#priority-of-constituencies) as [consumers > producers](https://lea.verou.me/blog/2025/user-effort/#consumers-over-producers), we end up with this expanded PoC:
+
 1. End-users
 2. HTML authors
 3. Custom attribute authors
@@ -124,22 +127,31 @@ Generalizing the [PoC](https://www.w3.org/TR/design-principles/#priority-of-cons
 
 > [!Important]
 > These boxes are used for conclusions, based on the prose before them.
+> Where a conclusion changed once the feature was specified and prototyped, the
+> box records what we've currently settled on.
 
 ### How to specify?
 
 The prevailing pattern seems to be defining a subclass of `Attr`.
 
 This has several benefits:
-- Existing API to use (e.g. `this.ownerNode` to refer to the host element)
+
+- Existing API to use (e.g. `this.ownerElement` to refer to the host element)
 - Existing mental model around "upgrading" nodes
 - Because attribute nodes are accessible via `element.attributes`, this also provides a clash-free way to hang methods and other values.
 - `Attr` is even an `EventTarget` so in theory attributes could even dispatch events
 
 There are also some downsides:
+
 - `Attr` is an old API, and comes with baggage. E.g. now we need to define how to handle namespaces too.
 
 > [!Important]
-> Despite drawbacks, extending `Attr` seems like a very internally consistent solution and solves many problems.
+> Custom attributes are subclasses of `Attr`.
+> Namespaces are always HTML; a custom attribute always has a null namespace,
+> and an attribute in any other namespace is never custom, even if its local
+> name matches a definition.
+> `new Attr()` itself throws a `TypeError`; only subclasses registered with a
+> `CustomAttributeRegistry` can be constructed, mirroring `HTMLElement`.
 
 ### Reflection
 
@@ -148,7 +160,9 @@ The proposal that hosted most of the discussion proposed handling attribute-prop
 However, this opens this up to a lot of API design complexity and increases the API surface, while a custom attributes API can ship without it and still cover use cases.
 
 > [!Important]
-> Let’s defer handling attribute-property reflection and provide sufficient low-level primitives to allow authors to make their own decisions.
+> Attribute-property reflection is deferred. The current proposal adds no
+> reflection machinery; authors react to `attributeChangedCallback()` and store
+> whatever they need on their `Attr` subclass.
 
 ### Which `Attr` property stores the JS-facing value?
 
@@ -168,17 +182,20 @@ class extends Attr {
 ```
 
 While elegant, this approach has several downsides:
+
 - Internal consistency: No built-in attributes work that way. In fact, `Attr.prototype.value` is [defined](https://dom.spec.whatwg.org/#dom-attr-value) to be a string.
 - In many cases there are very big differences between the JS-facing value and its string representation.
-For example, consider the `style` attribute and `element.style`, which is a whole object!
+  For example, consider the `style` attribute and `element.style`, which is a whole object!
 - Even when conversion is idempotent, we want to avoid any roundtrips that are not absolutely necessary, since these conversions are not always cheap.
 - While `Attr` is not very widely used directly, being a very old API means there can be any number of scripts depending on `attr.value` being a string.
 
-> [!Important]
-> Let’s use a separate property (e.g. `data`, `parsed`, etc) to hold the converted value. `Attr` would define it as an accessor over `this.value`, but authors can override it so that it does different things.
+A platform-designated slot (`data`, `parsed`, etc) was considered, but it would need a default behaviour, a relationship to `value`, and a story for when the two disagree, none of which the use cases required.
 
-This approach allows authors to decide for themselves what the source of truth would be.
-If they'd prefer, they can even define `data` it as a class field, with `value` being the accessor that proxies it.
+> [!Important]
+> No new property. `attr.value` stays a string and remains the source of truth
+> for the attribute.
+> Authors hold the parsed value in a field of their own choosing on the
+> subclass and refresh it from `attributeChangedCallback()`.
 
 ### API surface
 
@@ -186,85 +203,82 @@ Many native features add methods etc to the element.
 E.g. the `popover` attribute also adds `showPopover()`.
 
 However, just like reflection, trying to specify this adds additional complexity, and is not strictly necessary:
-with the model of `Attr` subclasses, authors can always hang methods on their `Attr` subclass, and they will be accessible via `element.attributes.attrName.methodName()`.
+with the model of `Attr` subclasses, authors can always hang methods on their `Attr` subclass, and they will be accessible via `element.getAttributeNode("attr-name").methodName()` or `element.attributes["attr-name"].methodName()`.
 
 Authors can use additional JS features to improve ergonomics, such as [first-class protocols](https://github.com/tc39/proposal-first-class-protocols), [decorators](https://github.com/tc39/proposal-decorators),
 or even monkey-patching, at their own risk.
 
+An earlier draft floated a static `definedCallback(name, ElementConstructor)` hook so an attribute could react to being registered on a particular element class.
+With registries scoped to trees rather than element classes (see [Scoping](#scoping)), there is no per-class registration to react to, so the hook has no job.
+
 > [!Important]
-> It doesn't look like we need a primitive for this.
-
-If we want to make things easier, we *could* have a lifecycle hook for registration that lets authors react to the attribute being registered on an element.
-
-```js
-class MyAttr extends Attr {
-	// elided
-
-	static definedCallback(name, ElementConstructor) {
-		console.log(name, ElementConstructor.name);
-	}
-}
-
-HTMLInputElement.customAttributes.define("my-attr", MyAttr);
-// prints my-attr HTMLInputElement
-```
+> No primitive for adding element API, and no `definedCallback`.
 
 ### Scoping
 
 Some proposals involve a global `customAttributes` registry, while in others `customAttributes` is a property of specific element classes, with `HTMLElement` serving as the global one.
 
-However, many (most?) use cases only involve specific element types and don't make sense in the global scope.
+Per-class registration is attractive because many use cases only make sense on certain element types, and the **same attribute** name may have entirely different meanings depending on the context (e.g. `for` is often used generically for element linking, and can mean completely different things).
 
-Additionally, the **same attribute** name may have entirely different meanings depending on the context (e.g. `for` is often used generically for element linking, and can mean completely different things).
+It has real costs though:
 
-And of course, the larger the scope, the larger the potential for clashes.
+- Looking up a definition for `(element, name)` has to walk the element's prototype chain, and must be redone whenever any registry on that chain changes.
+- It only works for elements with a JS constructor in scope. Unknown elements, elements in other namespaces, and elements whose constructor is in another realm all need special-casing.
+- It is a new scoping model, when the platform already has one for custom elements: `CustomElementRegistry` is scoped to documents, shadow roots, and elements.
 
-Global attributes would need to also work on SVG, MathML etc, which could delay the entire feature if global attributes are the MVP we go with.
+As @annevk [points out](https://github.com/WICG/webcomponents/issues/1029#issuecomment-3597830700):
 
-> [!Important]
-> Given the number of use cases around specific element types and the complexity of handling SVG at this early stage, it seems prudent to **scope to specific element classes**.
-
-Additionally, as @annevk [points out](https://github.com/WICG/webcomponents/issues/1029#issuecomment-3597830700):
 > `CustomElementRegistry` can be scoped to documents, shadow roots, and **elements**. And `document.customElementRegistry` is probably what we want to mimic for anything new. Not sure we should add another global accessor for this.
 
 @sorvell also [talked](https://github.com/WICG/webcomponents/issues/1029#issuecomment-1718332785) about scoped registries:
-> Experience with customElements and the scoped registries proposal suggests that scoping is a must and to avoid the pain custom elements has gone through, this feature shouldn't ship without it.
-While it's clear that
 
-However, given the amount of time it took to ship scoped registries for custom elements, it does not seem prudent for this to be a blocker.
-Nothing prevents us from shipping scoped custom attributes later.
+> Experience with customElements and the scoped registries proposal suggests that scoping is a must and to avoid the pain custom elements has gone through, this feature shouldn't ship without it.
+
+Reusing the custom element scoping model gets tree-scoped registries essentially for free, and sidesteps the per-class lookup problem entirely.
 
 > [!Important]
-> Let’s defer scoped custom attributes for later.
+> Registries are scoped to **trees**, not element classes, mirroring
+> `CustomElementRegistry` exactly:
+>
+> - `window.customAttributes` is the document's global `CustomAttributeRegistry`.
+> - `new CustomAttributeRegistry()` creates a scoped registry, attached to a
+>   subtree via `registry.initialize(root)`,
+>   `attachShadow({ customAttributeRegistry })`,
+>   `createElement(name, { customAttributeRegistry })`,
+>   `importNode(node, { customAttributeRegistry })`, or
+>   `setHTML()`/`setHTMLUnsafe()` options.
+> - Every `Element`, `ShadowRoot` and `Document` has a `customAttributeRegistry`
+>   (null or a registry); once set it cannot change.
+> - A definition applies to **any** element in the registry's scope, including
+>   SVG and MathML elements. Restricting to certain element types is the author's
+>   job (see [Specialising a built-in](EXPLAINER.md#specialising-a-built-in)).
 
 ### Same attribute on multiple element types
 
 There are many use cases where **the same attribute needs to apply to multiple element types**, without it being global.
 Examples abound in the platform: `href`, `src`, several form control attributes, loading attributes like `loading` or `crossorigin`, etc.
 
-Therefore, it should be possible to **register the same attribute to multiple classes**, since it is not always feasible to use inheritance to register an attribute on multiple elements.
+With tree-scoped registries this is the default: one `define()` call covers every element in the tree.
 
-E.g. consider a `persist-value` attribute that is placed on form controls to persist their values in localStorage whenever they are edited.
-We may want to register it on built-ins like `HTMLInputElement`, `HTMLTextAreaElement`, `HTMLSelectElement` by default:
+E.g. a `persist-value` attribute that persists form control values in localStorage:
 
 ```js
 // persist-value.js
 export class PersistAttr extends Attr {
-	// elided
+  connectedCallback() {
+    if (!("value" in this.ownerElement)) return;
+    // elided
+  }
 }
 
-// Add to native form elements by default
-HTMLInputElement.customAttributes.define("persist-value", PersistAttr);
-HTMLTextAreaElement.customAttributes.define("persist-value", PersistAttr);
-HTMLSelectElement.customAttributes.define("persist-value", PersistAttr);
+customAttributes.define("persist-value", PersistAttr);
 ```
 
-Then, consumers may want to additionally register it on custom form controls they use:
-```js
-import { PersistAttr, RangeSlider } from "./attrs/persist-value.js";
+Custom form controls get it too, as long as they expose whatever `PersistAttr` needs (here a `value` property).
 
-RangeSlider.customAttributes.define("persist-value", PersistAttr);
-```
+> [!Important]
+> Nothing to specify. One definition applies to all elements in scope; authors
+> opt out per element type in their own code.
 
 ### Naming
 
@@ -277,13 +291,11 @@ However, there are many exceptions in the web platform making this a bit awkward
 - `allow-charset`
 - `http-equiv`
 
-If we scope down v1 to `HTMLElement` only, we are left with a fixed, manageable set of names to exclude: Anything starting with `aria-`, as well as the two existing attributes.
-`data-*` does not need to be excluded, since it's already authorland.
-
 Another issue making this hard is that many custom element attributes use hyphens.
 On two different social media polls, about half of authors voted that they prioritize readability over [platform consistency](https://www.w3.org/TR/design-principles/#naming-consistency) (which recommends concatcase):
-- https://x.com/LeaVerou/status/1863812496106389819
-- https://front-end.social/@leaverou/113587139842885936
+
+- <https://x.com/LeaVerou/status/1863812496106389819>
+- <https://front-end.social/@leaverou/113587139842885936>
 
 <!--
 Additionally, as @jakearchibald [pointed out](https://github.com/WICG/webcomponents/issues/1029#issuecomment-2454991200), even attributes without dashes often camelCase in JS, which would make reflection clash (e.g. `readonly` → `readOnly`).
@@ -295,18 +307,31 @@ Another option would be a specific **prefix**, though given that the attribute n
 The CSS custom ident prefix (`--`) has also been proposed.
 On one hand it is the target of numerous author complaints, on the other it _is_ an existing established convention.
 
+Since definitions apply to every element (including SVG and MathML), the excluded set has to cover the whole platform, not just HTML.
+The hyphenated SVG presentation attributes turn out not to be a problem: they are only meaningful on SVG elements, and an author defining `fill-opacity` as a custom attribute gets exactly what they asked for.
+What must be excluded is names with platform-wide meaning that can appear on any element.
+
+> [!Important]
+> A hyphen is required, as with custom elements. HTML, SVG and MathML avoid
+> adding hyphenated attribute names going forward, so this is the
+> forward-compatibility guarantee.
+> Names must start with a lowercase ASCII letter and contain no uppercase
+> letters, so HTML's case-insensitive attribute handling always resolves.
+> Reserved: anything starting with `aria-`, `data-`, `xml` or `xlink`, plus
+> `accept-charset` and `http-equiv`. `data-*` is excluded because it already
+> has platform semantics (`dataset`), even though it is authorland.
 
 ### Lifecycle hooks
 
 What does `connectedCallback` etc mean in the context of an attribute?
-Do they still correspond to the *element* being connected, or the *attribute* being specified on the element? Or when both are true?
+Do they still correspond to the _element_ being connected, or the _attribute_ being specified on the element? Or when both are true?
 
 @DeepDoge [makes a good case](https://github.com/WICG/webcomponents/issues/1029#issuecomment-3599188181) for the latter:
 
 > IMO custom attributes are composable behavior units, kind of like a superset of extended custom elements. So, `connectedCallback()` should run only when both are true:
 >
-> * The attribute is attached to an element
-> * That element is connected to the DOM
+> - The attribute is attached to an element
+> - That element is connected to the DOM
 >
 > If we simplify it even more, it should trigger when the attribute is connected to the DOM, not when attribute is connected to an element.
 >
@@ -316,14 +341,21 @@ Do they still correspond to the *element* being connected, or the *attribute* be
 >
 > So should it be called "when the attribute is connected, or when the element is connected?": It should be called when the attribute is connected to the DOM, which also requires element its connect to be connected to the DOM as well. I think we can all agree that "Connected" means "Connected to the DOM".
 
-We could probably define similar semantics for other lifecycle callbacks (`disconnectedCallback`, `adoptedCallback` etc), though they may be less straightforward.
+This generalizes cleanly to the rest of the custom element callbacks, because an attribute is only ever "in the DOM" through its element:
 
-It would be good to do a review of use cases to see how common it is to need lifecycle hooks around the element itself, that are separate from those of the attribute node. Assuming these are niche, they can always be addressed via `MutationObserver` improvements down the line (e.g. [observing connectedness is already an open feature request](https://github.com/whatwg/dom/issues/533))
+- `adoptedCallback` follows the element into the new document.
+- `connectedMoveCallback` fires when the element is moved with `moveBefore()`, with the same disconnected-then-connected fallback as custom elements.
+- Moving an `Attr` node between elements is impossible without removing it first (`setAttributeNode()` on a node that already has an owner throws), so there is no separate "attribute adopted" notion.
+
+No use case in [use-cases.md](use-cases.md) needed element lifecycle separate from attribute lifecycle.
 
 > [!Important]
-> Let's define lifecycle callbacks taking into account the element and the attribute as a whole.
-> Review use cases to see if element-specific hooks are needed.
-
+> An attribute is _connected_ when it is in an element's attribute list **and**
+> that element is connected. `connectedCallback`, `disconnectedCallback`,
+> `connectedMoveCallback` and `adoptedCallback` all key off that, whether the
+> transition is caused by the attribute being added/removed or by the element
+> being inserted/removed/moved/adopted.
+> Element-specific hooks have been deferred.
 
 ### How to react to attribute changes?
 
@@ -333,7 +365,13 @@ The getter of `attr.value` simply returns the value of an internal slot, so sett
 While a mutation observer is always an option, reusing `attributeChangedCallback()` seems like a very fitting solution, and on par with reusing existing lifecycle hooks.
 
 > [!Important]
-> `attributeChangedCallback()` will fire when the attribute changes.
+> `attributeChangedCallback(oldValue, newValue)` fires when the attribute is
+> added, changed, replaced or removed, with a similar signature as custom
+> elements. `oldValue` is null on add and `newValue` is null on remove. As the
+> attribute name is always consistent, and namespace will always be `null`,
+> these arguments have been dropped.
+> On upgrade it also fires once with the initial value, before
+> `connectedCallback`, so an attribute never has to special-case its first value.
 
 ### Traits involving multiple attributes
 
@@ -344,88 +382,50 @@ For example, in the web platform there is `<template shadowrootmode="open">`, bu
 
 Another pattern is where multiple attributes work together to specify a DSL. For example [Vue directives](https://vuejs.org/api/built-in-directives.html) (`v-if`, `v-for`, `v-on` etc).
 
-Therefore, a nice-to-have would be to have a way for the attribute to react to attribute changes of *other* attributes on the element.
-And if we're already using `attributeChangedCallback()` (see above),
-we may as well reuse `observedAttributes` and feed two birds with one scone (note that the attribute _itself_ would always be observed automatically, authors would only need `observedAttributes` for observing *other* attributes).
+Reusing `observedAttributes` to let an attribute watch _other_ attributes on its element was considered.
+It was left out of v1 for two reasons:
+
+- Cost: today an attribute change only enqueues a reaction if that attribute is itself custom, so non-custom attribute mutations stay on the fast path. Observing arbitrary attributes would require every custom attribute on an element to be consulted on every attribute change.
+- Ambiguity: `attributeChangedCallback` would then receive names other than the attribute's own, and an attribute reacting to a sibling's change is one `MutationObserver` on `this.ownerElement` away (see [Reacting to sibling attributes](EXPLAINER.md#reacting-to-sibling-attributes)).
 
 > [!Important]
-> Let's reuse `attributeChangedCallback()` and `observedAttributes()` to allow an attribute to observe others.
+> No `observedAttributes` in v1. `attributeChangedCallback` only fires for the
+> attribute itself. Can be added later without breaking anything.
 
-## Current Proposal
+### When does the constructor run?
 
-Putting all of the above together gives us a strawman to facilitate discussion.
+Native `Attr` nodes are constructed as part of parsing or `setAttribute()`, before any script involved in creating the element gets to run ([demo](https://codepen.io/leaverou/pen/azNQWoz?editors=1012)).
 
-### Summary
+Running author code at that moment is unappealing:
 
-Custom attributes are defined as a subclass of `Attr` and registered for use with one or more element constructors:
+- Attributes are created in bulk by the parser, which cannot run script between tokens.
+- A custom element's constructor has not run yet, so an attribute registered for it cannot rely on the element being initialized.
+- Most attributes are created on disconnected elements (fragments, templates, `createElement()`) that may never be inserted.
 
-```js
-class MyTooltip extends Attr {
-	// elided
-}
+Custom elements solve exactly this with **upgrades**: the node is created as a plain node and converted in place, as a reaction, once it is connected. The same model fits attributes with one adjustment: an attribute on a disconnected element is not upgraded until the element is connected (or `upgrade()` is called explicitly), because most disconnected attributes are transient.
 
-HTMLElement.customAttributes.define("my-tooltip", MyTooltip);
-```
+> [!Important]
+> An `Attr` node is upgraded (its prototype swapped, its constructor run) as a
+> custom element reaction, when:
+>
+> - its element becomes connected;
+> - it is added to an already-connected element;
+> - `define()` is called and it already exists on a connected element;
+> - `registry.upgrade(root)` or `registry.initialize(root)` is called, connected
+>   or not.
+>
+> The constructor runs with `this.ownerElement` and `this.value` already
+> populated (the `super()` call returns the existing node), and must return
+> `this`. Node identity is preserved: the same `Attr` object is upgraded in
+> place.
+> For an element that is both a custom element and carries custom attributes,
+> the element's own reactions are enqueued before its attributes' reactions.
+> `document.createAttribute(name)` is the one synchronous path: if `name` is
+> defined in the document's registry, the constructor runs immediately.
 
-### New members on existing interfaces
+## Current proposal
 
-#### `HTMLElement.customAttributes`
-
-New static member of type `CustomAttributeRegistry`, with the same methods as `CustomElementRegistry`. This is a distinct instance per subclass, and an element recognizes attributes registered on any of its superclasses.
-
-> [!Note]
-> We may want to define a `CustomRegistry` superclass that they both inherit from.
-
-### `Attr` subclass members
-
-### Lifecycle hooks
-
-Lifecycle callbacks similar to custom elements are available:
-
-- `connectedCallback`: Executed when the attribute is present on the element and `this.ownerElement.isConnected` is true.
-- `disconnectedCallback`: Executed when the attribute is no longer connected (see above)
-- `connectedMoveCallback()`: TBD
-- `adoptedCallback()`: Fired when the attribute node is moved to another element (e.g. via `setAttributeNode`) OR `ownerElement` is moved to another document.
-- `attributeChangedCallback()`: Executed when the attribute itself or any of the attributes in `this.constructor.observedAttributes` are changed, added, removed, or replaced. The attribute itself is always observed whether it’s specified in `observedAttributes` or not.
-
-There is also a static lifecycle hook:
-- `definedCallback(name, ElementConstructor)`: Executed whenever the attribute is defined on an element constructor
-
-## Notes / Patterns
-
-### Persistent attribute node
-
-Note that browsers currently create a new `Attr` node every time an attribute is added, even though they reuse an existing node if an existing attribute value is changed.
-
-If reusing the same node is desirable (e.g. due to high setup costs), this could be done with a `WeakMap`:
-
-```js
-/** @type WeakMap<HTMLElement, Attr> */
-let nodes = new WeakMap();
-
-class MyAttr extends Attr {
-	constructor() {
-		super();
-
-		let existing = nodes.get(this.ownerElement);
-
-		if (existing) {
-			return existing;
-		}
-	}
-}
-```
-
-### Timing
-
-Currently, `Attr` nodes are already constructed by the time the constructor of a custom element’s subclass runs,
-presumably by `Element`’s constructor ([demo](https://codepen.io/leaverou/pen/azNQWoz?editors=1012)).
-
-Should upgrading happen then too?
-This means any custom attribute code needs to run before the element has a chance to construct itself fully.
-
-We could also define it to run after the constructor it was registered on.
-E.g. registering an attribute on `HTMLElement` would run it after the `HTMLElement` constructor, whereas registering an attribute on `HTMLFormElement` would run it after the `HTMLFormElement` constructor.
+The design decisions above are consolidated into **[EXPLAINER.md](EXPLAINER.md)**: API, key scenarios, detailed design, WebIDL, and the list of ideas deferred to a later iteration.
 
 ## FAQ
 
@@ -438,7 +438,7 @@ For example, you wouldn't want to implement a text field by doing `<div my-textf
 Ew!
 An element is or isn't a text field, it's not something you can just slap on any element.
 
-That said, *specializing* an element type is a totally valid use case. E.g. `<input type="password" pwd-toggle>` or even `<button my-button>`.
+That said, _specializing_ an element type is a totally valid use case. E.g. `<input type="password" pwd-toggle>` or even `<button my-button>`.
 For more background/motivation, check out the [Introduction](#introduction).
 
 ### Can't we do this already with `MutationObserver`?
