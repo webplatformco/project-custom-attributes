@@ -294,7 +294,7 @@ _Upgrade an attribute_, given a definition (largely the same as Custom Elements)
 
 - Attributes join the existing custom element reactions stack; `[CEReactions]`
   is on `define()`, `upgrade()`, `initialize()` and `createAttribute()`.
-- Timing is identical to custom elements: reactions run at the end of the
+- Timing logic is now identical to custom elements, but applied to custom attributes: reactions run at the end of the
   outermost `[CEReactions]` scope, or at the next microtask checkpoint for
   parser-created nodes.
 - Within one operation: `attributeChangedCallback` precedes `connectedCallback`
@@ -304,6 +304,14 @@ _Upgrade an attribute_, given a definition (largely the same as Custom Elements)
 - `innerHTML` on a connected element upgrades before the `[CEReactions]` scope
   returns; `<template>` content, `DOMParser` documents and fragments upgrade
   when inserted into a connected tree.
+
+To clarify non-spec terms, when a custom attribute is added to an element that has already been connected and has already had its `connectedCallback' called, the attribute _joins_ the element in a live tree (the attribute is now connected into a live tree) and the attribute's `connectedCallback` is called immediately so that both the element and the attribute are in connected state. In other words the attribute's connectedCallback represents its own connectedness into any live tree, and not that of the owner element.
+
+Similarly when a custom attribute is removed from an element that is constantly connected and the element has not had its disconnectedCallback called yet, the attribute's disconnectedCallback will be called because the attribute is no longer connected to a live three, it is no longer joined with the owner element. In other words the attribute's disconnectedCallback represents its own disconnectedness, not that of its owner element. 
+
+Custom attribute connected/disconnected callbacks only happen to fire along side the owner element's connected/disconnected callbacks if the attribute is already added to the element when the element is added into a live tree, and if the owner element is removed from a live tree while the attribute is still on the element, respectively.
+
+A custom attribute's connected/disconnected callbacks do not correspond specifically to the attribute's connectedness to an owner element, but to the attribute's connectedness to a live tree: if a custom attribute is added to and then removed from an element while that element is not connected to a live tree, the custom attribute's connected and disconnected callbacks will not be called.
 
 ### Registry lookup and scoping rules
 
