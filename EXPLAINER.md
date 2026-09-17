@@ -183,15 +183,15 @@ so an attribute's `connectedCallback()` sees an upgraded host.
 ### Attribute with methods
 
 ```js
-class Removable extends Attr {
+class RemovableListener extends Attr {
   remove() {
     this.ownerElement.dispatchEvent(new Event("remove"));
     this.ownerElement.remove();
   }
 }
-customAttributes.define("removable", Removable);
+customAttributes.define("removable-listener", Removable);
 
-el.getAttributeNode("removable").remove();
+el.getAttributeNode("removable-listener").remove();
 ```
 
 Methods live on the attribute node, so they never clash with element API.
