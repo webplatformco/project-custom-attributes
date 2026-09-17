@@ -53,7 +53,7 @@ class PersistValue extends Attr {
     this.ownerElement.removeEventListener("input", this);
   }
 
-  attributeChangedCallback(name, oldValue, newValue) {
+  attributeChangedCallback(oldValue, newValue) {
     this.key = newValue || this.ownerElement.name;
   }
 
