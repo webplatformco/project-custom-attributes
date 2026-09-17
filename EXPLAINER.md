@@ -152,7 +152,7 @@ One `define()` covers HTML, SVG and MathML elements alike.
 
 ```html
 <input type="password" pwd-toggle />
-<table sortable>
+<table sortable-cols>
   <button href="/save">Save</button>
 </table>
 ```
